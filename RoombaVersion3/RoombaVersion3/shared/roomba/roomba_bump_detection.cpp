@@ -8,7 +8,7 @@
 
 uint8_t get_roomba_bump_sensors() {
 	roomba_sensor_data_t sensor_packet;
-	Roomba_UpdateSensorPacket(EXTERNAL, &sensor_packet);
+	Roomba_UpdateSensorPacket(EXTERNALL, &sensor_packet);
 	return sensor_packet.bumps_wheeldrops;
 }
 

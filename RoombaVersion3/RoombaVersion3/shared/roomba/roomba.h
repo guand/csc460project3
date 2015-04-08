@@ -13,7 +13,7 @@
 
 typedef enum _rsg
 {
-	EXTERNAL=1,		// group 1 (bumper/wheeldrops, cliff sensors, virtual wall, motor overcurrents, dirt sensors)
+	EXTERNALL=1,		// group 1 (bumper/wheeldrops, cliff sensors, virtual wall, motor overcurrents, dirt sensors)
 	CHASSIS=2,		// group 2 (remote, buttons, distance, angle)
 	INTERNAL=3,		// group 3 (charging state; battery voltage, current, charge and capacity; internal temperature)
     LIGHT_BUMPERS=106    // group 106( light bump left;light bump front left, light bump center left, light bump center right, light bump front right, light bump right)

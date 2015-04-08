@@ -55,7 +55,7 @@ void Roomba_UpdateSensorPacket(ROOMBA_SENSOR_GROUP group, roomba_sensor_data_t* 
 	Roomba_Send_Byte(group);
 	switch(group)
 	{
-	case EXTERNAL:
+	case EXTERNALL:
 		// environment sensors
 		while (uart_bytes_received() != 10);
 		sensor_packet->bumps_wheeldrops = uart_get_byte(0);

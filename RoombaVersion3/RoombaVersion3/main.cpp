@@ -4,6 +4,12 @@
 SERVICE* radio_receive_service;
 SERVICE* ir_receive_service;
 
+// bluetooth driver
+Bluetooth *blue = new Bluetooth("RoombaBluetooth");
+
+int16_t velocity_x = 0;
+int16_t velocity_y = 0;
+
 // everyone hard-codes this number when they begin the game
 uint8_t roomba_num = 1;
 uint8_t ir_count = 0;
@@ -40,49 +46,51 @@ void ir_rxhandler() {
 	}
 }
 
-void handleRoombaInput(pf_game_t* game)
+void handleRoombaInput()
 {
-	int16_t x_value = (((game->velocity_x*5)/256) - 2)*40;
-	int16_t y_value = (((game->velocity_y*5)/256) - 2)*250;
-
+// 	int16_t x_value = (((game->velocity_x*5)/256) - 2)*40;
+// 	int16_t y_value = (((game->velocity_y*5)/256) - 2)*250;
+	int16_t x_value = velocity_x;
+	int16_t y_value = velocity_y;
 	// reset into safe mode.
 	Roomba_Send_Byte(SAFE);
-	if(game->game_team == ZOMBIE && game->game_state == (uint8_t)STUNNED) {
-		Roomba_Drive(15,0x8000);
-		
-	} else if(autonomy_state == USER) {
-		autonomy_counter = 0;
-		if( x_value == 0 && y_value == 0) {
-			Roomba_Drive(0,0x8000);
-		} else if( x_value == 0) {
-			y_value = -y_value;
-			Roomba_Drive(y_value,0x8000);
-		} else if( y_value == 0) {
-			// turn in place
-			uint16_t deg = 1;
-			if( x_value < 0 ){
-				deg = -1;
-			}
-			Roomba_Drive(250,deg);
-		} else {
-			x_value = x_value;
-			y_value = -y_value;
-			Roomba_Drive(y_value,x_value);
-		}
-	} else if(autonomy_state = TURN_LEFT) {
-		if(autonomy_counter > 3) {
-			autonomy_state = USER;
-		}
-		autonomy_counter++;
-		Roomba_Drive(250,1);
-	} else if(autonomy_state = TURN_RIGHT) {
-		if(autonomy_counter > 3) {
-			autonomy_state = USER;
-		}
-		autonomy_counter++;
-		Roomba_Drive(250,-1);
-		
-	}
+	Roomba_Drive(y_value, x_value);
+// 	if(game->game_team == ZOMBIE && game->game_state == (uint8_t)STUNNED) {
+// 		Roomba_Drive(15,0x8000);
+// 		
+// 	} else if(autonomy_state == USER) {
+// 		autonomy_counter = 0;
+// 		if( x_value == 0 && y_value == 0) {
+// 			Roomba_Drive(0,0x8000);
+// 		} else if( x_value == 0) {
+// 			y_value = -y_value;
+// 			Roomba_Drive(y_value,0x8000);
+// 		} else if( y_value == 0) {
+// 			// turn in place
+// 			uint16_t deg = 1;
+// 			if( x_value < 0 ){
+// 				deg = -1;
+// 			}
+// 			Roomba_Drive(250,deg);
+// 		} else {
+// 			x_value = x_value;
+// 			y_value = -y_value;
+// 			Roomba_Drive(y_value,x_value);
+// 		}
+// 	} else if(autonomy_state = TURN_LEFT) {
+// 		if(autonomy_counter > 3) {
+// 			autonomy_state = USER;
+// 		}
+// 		autonomy_counter++;
+// 		Roomba_Drive(250,1);
+// 	} else if(autonomy_state = TURN_RIGHT) {
+// 		if(autonomy_counter > 3) {
+// 			autonomy_state = USER;
+// 		}
+// 		autonomy_counter++;
+// 		Roomba_Drive(250,-1);
+// 		
+// 	}
 
 	// fire every 5th packet
 	ir_count+= 1;
@@ -178,7 +186,6 @@ void handleStateInput(pf_game_t* game){
 			default:
 				break;
 		}
-
  	}
 }
 
@@ -206,8 +213,6 @@ void send_back_packet()
 	Radio_Transmit(&tx_packet, RADIO_RETURN_ON_TX);
 }
 
-
-
 void current_radio_state() {
 	//Start the Roomba for the first time.
 	int16_t value;
@@ -223,7 +228,6 @@ void current_radio_state() {
 			if(result == RADIO_RX_SUCCESS || result == RADIO_RX_MORE_PACKETS) {
 				if( packet.type == GAME)
 				{
-					handleRoombaInput(&packet.payload.game);
 					handleStateInput(&packet.payload.game);
 				}
 			}
@@ -308,11 +312,47 @@ void init_roomba_state(ROOMBA_STATE* roomba)
 	roomba->button = 0;
 }
 
+// void rr_task_hello_world(void) {
+// 	while (1) {
+// 		_delay_ms(5000);
+// 		blue->Send("Hello World!");
+// 	}
+// }
+
+bool alternating_velocity = true;
+void current_bluetooth_state() {
+	for(;;) {
+		while (blue->btSerial->available()) {
+			char received_value = blue->btSerial->read();
+			if (alternating_velocity) {
+				alternating_velocity = !alternating_velocity;
+				velocity_y = (((int)received_value)-75)*50;
+				digitalWrite(13, HIGH);
+				_delay_ms(100);
+			} else {
+				alternating_velocity = !alternating_velocity;
+				velocity_x = (((int)received_value)-75)*200;
+			}
+			digitalWrite(13, LOW);
+			_delay_ms(100);
+			
+			handleRoombaInput();
+		}
+	}
+}
+
 int r_main(void)
 {
+	//Initialize arduino
+	init();
+	
+		pinMode(13, OUTPUT);
+	
+  	//Setup bluetooth
+  	blue->setupBluetooth();
+	
 	power_cycle_radio();
 	init_roomba_state(&roomba);
-	
 	
 	//Initialize radio
 	Radio_Init();
@@ -326,9 +366,11 @@ int r_main(void)
 
 	//Create the tasks
 	Task_Create_System(setup_roomba, 0);
-	Task_Create_RR(current_radio_state,0);
-	Task_Create_RR(current_ir_state,0);
-	Task_Create_Periodic(check_bump_sensor, 0, 80, 60, 1000);
+	Task_Create_RR(current_bluetooth_state,0);
+ 	Task_Create_RR(current_radio_state,0);
+ 	Task_Create_RR(current_ir_state,0);
+	//Task_Create_RR(rr_task_hello_world,0);
+	//Task_Create_Periodic(check_bump_sensor, 0, 80, 60, 1000);
  
 	Task_Terminate();
 	return 0 ;

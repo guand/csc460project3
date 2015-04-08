@@ -2,6 +2,8 @@
 # Automatically-generated file. Do not edit or delete the file
 ################################################################################
 
+bluetooth\bluetooth.cpp
+
 main.cpp
 
 shared\game.cpp

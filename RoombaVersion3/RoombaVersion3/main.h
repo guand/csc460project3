@@ -8,6 +8,9 @@
 #ifndef MAIN_H_
 #define MAIN_H_
 
+#include "Arduino.h"
+#include "bluetooth/bluetooth.h"
+
 #include "shared/rtos_n/os.h"
 #include "shared/rtos_n/timer.h"
 #include "shared/radio/radio.h"
